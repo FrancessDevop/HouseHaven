@@ -14,7 +14,8 @@ pipeline {
 
     stage('Checkout') {
       steps {
-        git 'https://github.com/FrancessDevop/HouseHaven.git'
+        git branch: 'main',
+            url: 'https://github.com/FrancessDevop/HouseHaven.git'
       }
     }
 
