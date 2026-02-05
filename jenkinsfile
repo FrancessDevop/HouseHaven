@@ -45,7 +45,7 @@ pipeline {
           zip -r dist.zip dist/
           curl -u $NEXUS_CREDS_USR:$NEXUS_CREDS_PSW \
             --upload-file dist.zip \
-            http://NEXUS_IP:8081/repository/npm-hosted/HouseHaven-dist.zip
+            http://34.229.84.130:8081/repository/npm-hosted/HouseHaven-dist.zip
         '''
       }
     }
@@ -74,7 +74,7 @@ pipeline {
     stage('Deploy') {
       steps {
         sh """
-          ssh ubuntu@DEPLOY_IP \
+          ssh ubuntu@98.93.81.52 \
             docker pull YOUR_REGISTRY/househaven:latest && \
             docker stop househaven || true && \
             docker rm househaven || true && \
