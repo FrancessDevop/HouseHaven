@@ -1,0 +1,86 @@
+pipeline {
+  agent any
+
+  environment {
+    SONAR_TOKEN = credentials('sonar-token')
+    NEXUS_CREDS = credentials('nexus-creds')
+  }
+
+  tools {
+    nodejs 'nodejs'
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        git 'https://github.com/FrancessDevop/HouseHaven.git'
+      }
+    }
+
+    stage('Install Dependencies') {
+      steps {
+        sh 'npm install'
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh 'npm run build'
+      }
+    }
+
+    stage('SonarQube Analysis') {
+      steps {
+        withSonarQubeEnv('SonarQube') {
+          sh 'sonar-scanner -Dsonar.login=$SONAR_TOKEN -Dsonar.projectKey=HouseHaven'
+        }
+      }
+    }
+
+    stage('Push Artifacts to Nexus') {
+      steps {
+        // optional — store build as .zip in Nexus
+        sh '''
+          zip -r dist.zip dist/
+          curl -u $NEXUS_CREDS_USR:$NEXUS_CREDS_PSW \
+            --upload-file dist.zip \
+            http://NEXUS_IP:8081/repository/npm-hosted/HouseHaven-dist.zip
+        '''
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t househaven:latest .'
+      }
+    }
+
+    stage('Publish Docker Image') {
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: 'docker-creds',
+          passwordVariable: 'PASS', usernameVariable: 'USER'
+        )]) {
+          sh """
+            docker tag househaven:latest YOUR_REGISTRY/househaven:latest
+            docker login -u $USER -p $PASS YOUR_REGISTRY
+            docker push YOUR_REGISTRY/househaven:latest
+          """
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        sh """
+          ssh ubuntu@DEPLOY_IP \
+            docker pull YOUR_REGISTRY/househaven:latest && \
+            docker stop househaven || true && \
+            docker rm househaven || true && \
+            docker run -d -p 80:80 --name househaven YOUR_REGISTRY/househaven:latest
+        """
+      }
+    }
+  }
+}
